@@ -1,5 +1,6 @@
 package com.nowcoder.util;
 
+import com.alibaba.fastjson.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -15,11 +16,12 @@ import redis.clients.jedis.JedisPool;
 public class JedisAdapter implements InitializingBean {
     private static final Logger logger = LoggerFactory.getLogger(JedisAdapter.class);
 
-    private JedisPool pool=null;
+    private JedisPool pool = null;
 
     public static void print(int index, Object object) {
         System.out.println(String.format("%d,%s", index, object.toString()));
     }
+
 
     public static void main(String[] args) {
         Jedis jedis = new Jedis();
@@ -80,6 +82,8 @@ public class JedisAdapter implements InitializingBean {
         print(19, jedis.zscore(rankKey, "alice"));
         print(20, jedis.zcard(rankKey));
         print(21, jedis.zcount(rankKey, 50, 80));
+
+
     }
 
     @Override
@@ -90,6 +94,35 @@ public class JedisAdapter implements InitializingBean {
 
     private Jedis getJedis() {
         return pool.getResource();
+    }
+
+    public void set(String key, String value) {
+        Jedis jedis = null;
+        try {
+            jedis = pool.getResource();
+            jedis.set(key, value);
+        } catch (Exception e) {
+            logger.error("发生异常" + e.getMessage());
+        } finally {
+            if (jedis != null) {
+                jedis.close();
+            }
+        }
+    }
+
+    public String get(String key) {
+        Jedis jedis = null;
+        try {
+            jedis = pool.getResource();
+            return jedis.get(key);
+        } catch (Exception e) {
+            logger.error("发生异常" + e.getMessage());
+            return null;
+        } finally {
+            if (jedis != null) {
+                jedis.close();
+            }
+        }
     }
 
     public long sadd(String key, String value) {
@@ -150,5 +183,17 @@ public class JedisAdapter implements InitializingBean {
                 jedis.close();
             }
         }
+    }
+
+    public void setObject(String key, Object obj) {
+        set(key, JSON.toJSONString(obj));
+    }
+
+    public <T> T getObject(String key, Class<T> clazz) {
+        String value = get(key);
+        if (value != null) {
+            return JSON.parseObject(value, clazz);
+        }
+        return null;
     }
 }
